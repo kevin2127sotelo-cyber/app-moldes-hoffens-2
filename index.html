@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#111827">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Control Moldes Hoffens</title>
+  <style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f4f7;color:#1f2937}
+header{background:#111827;color:white;padding:18px;text-align:center}
+header h1{margin:0;font-size:25px}
+header p{margin:6px 0 0;color:#d1d5db}
+main{max-width:1000px;margin:auto;padding:14px}
+.card{background:white;border-radius:14px;padding:15px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+h2{margin-top:0}
+label{display:block;margin-top:12px;font-weight:bold}
+input,select{width:100%;padding:12px;margin-top:5px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px}
+button{width:100%;border:0;padding:13px;margin-top:14px;border-radius:10px;background:#2563eb;color:white;font-size:16px;font-weight:bold}
+button.secondary{background:#059669}
+button.danger{background:#dc2626}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.info span{background:#eef2ff;padding:10px;border-radius:10px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stats div{background:#f8fafc;border-radius:12px;padding:12px;text-align:center}
+.stats strong{display:block;font-size:22px}
+.stats span{font-size:13px;color:#64748b}
+.table-wrap{overflow:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th,td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:center;font-size:14px}
+th{background:#f1f5f9}
+.ok{color:#15803d;font-weight:bold}
+.warn{color:#ca8a04;font-weight:bold}
+.bad{color:#dc2626;font-weight:bold}
+.resultado{margin-top:14px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:12px;padding:12px;text-align:center}
+.resultado span{display:block;color:#166534;font-weight:bold}
+.resultado strong{display:block;font-size:28px;margin:5px 0;color:#14532d}
+.resultado small{display:block;color:#64748b;font-size:12px}
+@media(max-width:650px){.stats,.info{grid-template-columns:1fr}main{padding:10px}}
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Control Moldes</h1>
+    <p>Registro rápido de ciclos y producción</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Registro diario</h2>
+
+      <label>Fecha</label>
+      <input type="date" id="fecha">
+
+      <label>Máquina</label>
+      <select id="maquina"></select>
+
+      <label>Buscar molde</label>
+      <input type="text" id="buscadorMolde" placeholder="Escribe código o nombre del producto">
+
+      <label>Código molde / producto</label>
+      <select id="molde"></select>
+
+      <div class="info">
+        <span>Producto: <b id="descripcion">-</b></span>
+        <span>Ciclo estándar: <b id="cicloEstandar">-</b> s</span>
+        <span>Cavidades molde: <b id="cavidades">-</b></span>
+        <span>Prod. teórica 8 h: <b id="prodTeorica">-</b></span>
+        <span>Prod. real calculada: <b id="prodRealCalc">-</b></span>
+      </div>
+
+      <label>Ciclo real</label>
+      <input type="number" step="0.01" id="cicloReal" placeholder="Ej: 35">
+
+      <label>Cavidades reales en trabajo</label>
+      <input type="number" step="1" id="cavidadesReales" placeholder="Ej: 8">
+
+      <label>Horas trabajadas</label>
+      <input type="number" step="0.01" id="horasTrabajadas" value="8" placeholder="Ej: 8">
+
+      <div class="resultado">
+        <span>Producción real calculada:</span>
+        <strong id="produccionCalculada">-</strong>
+        <small>Fórmula: cavidades reales × 3600 ÷ ciclo real × horas trabajadas</small>
+      </div>
+
+      <button onclick="guardarRegistro()">Guardar registro</button>
+    </section>
+
+    <section class="card">
+      <h2>Estadística rápida</h2>
+      <div class="stats">
+        <div><strong id="totalRegistros">0</strong><span>Registros</span></div>
+        <div><strong id="totalProduccion">0</strong><span>Producción total</span></div>
+        <div><strong id="promedioCiclo">0</strong><span>Prom. ciclo real</span></div>
+        <div><strong id="promedioCumplimiento">0%</strong><span>Cumplimiento prom.</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Historial</h2>
+      <button class="secondary" onclick="exportarCSV()">Exportar Excel/CSV</button>
+      <button class="danger" onclick="borrarRegistros()">Borrar registros</button>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Máq.</th>
+              <th>Molde</th>
+              <th>Producto</th>
+              <th>C. Est.</th>
+              <th>C. Real</th>
+              <th>Cav. Real</th>
+              <th>Horas</th>
+              <th>Dif.</th>
+              <th>Estado</th>
+              <th>Prod. Real Calc.</th>
+              <th>Cump.</th>
+            </tr>
+          </thead>
+          <tbody id="tablaRegistros"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Base cargada</h2>
+      <p id="resumenBase"></p>
+    </section>
+  </main>
+
+  <script>
+const MAQUINAS = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 24, 25, 26, 27, 28, 29];
+const MOLDES = [
+  {
+    "codigo": "10001",
+    "ciclo": 16.0,
+    "cavidades": 8,
+    "produccionTeorica": 14400.0,
+    "descripcion": "GOMA STANDAR 1 1/4"
+  },
+  {
+    "codigo": "10008",
+    "ciclo": 12.8,
+    "cavidades": 4,
+    "produccionTeorica": 9000.0,
+    "descripcion": "ZZ GOMA PLANA DESAGUE 11/4 C/REJ"
+  },
+  {
+    "codigo": "10009",
+    "ciclo": 33.823,
+    "cavidades": 4,
+    "produccionTeorica": 3406.0,
+    "descripcion": "ZZ TAPA SELLO 11/2"
+  },
+  {
+    "codigo": "10012",
+    "ciclo": 81.0,
+    "cavidades": 8,
+    "produccionTeorica": 8500.0,
+    "descripcion": "GOMA PLANA TEE REGISTRO 110 mm"
+  },
+  {
+    "codigo": "10013",
+    "ciclo": 14.4,
+    "cavidades": 6,
+    "produccionTeorica": 12000.0,
+    "descripcion": "GOMA PLANA BUSHING"
+  },
+  {
+    "codigo": "10015",
+    "ciclo": 20.0,
+    "cavidades": 4,
+    "produccionTeorica": 5760.0,
+    "descripcion": "GOMA AJUSTE LOA"
+  },
+  {
+    "codigo": "10016",
+    "ciclo": 12.8,
+    "cavidades": 8,
+    "produccionTeorica": 18000.0,
+    "descripcion": "ZZ GOMA CONICA REBALSE TINA"
+  },
+  {
+    "codigo": "10017",
+    "ciclo": 23.351,
+    "cavidades": 3,
+    "produccionTeorica": 3700.0,
+    "descripcion": "ZZ GOMA ADAPTADORA DESAGUE LAVATORIO"
+  },
+  {
+    "codigo": "10024",
+    "ciclo": 26.0,
+    "cavidades": 4,
+    "produccionTeorica": 4430.77,
+    "descripcion": "CURVA STD REGIO BLANCA"
+  },
+  {
+    "codigo": "10033",
+    "ciclo": 16.457,
+    "cavidades": 8,
+    "produccionTeorica": 14000.0,
+    "descripcion": "GOMA CONICA 1 1/4 REGIO"
+  },
+  {
+    "codigo": "10034",
+    "ciclo": 36.0,
+    "cavidades": 2,
+    "produccionTeorica": 1600.0,
+    "descripcion": "CUERPO TRAMPA"
+  },
+  {
+    "codigo": "10035",
+    "ciclo": 29.268,
+    "cavidades": 8,
+    "produccionTeorica": 7872.0,
+    "descripcion": "CODO ST 1 1/2 BLANCO"
+  },
+  {
+    "codigo": "10039",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "CUERPO 1 1/4 LAVATORIO BLANCO"
+  },
+  {
+    "codigo": "10040",
+    "ciclo": 21.851,
+    "cavidades": 2,
+    "produccionTeorica": 2636.0,
+    "descripcion": "ZZ CUERPO DESAGUE LTORIO PARA REJILLA"
+  },
+  {
+    "codigo": "10041",
+    "ciclo": 17.0,
+    "cavidades": 2,
+    "produccionTeorica": 3388.24,
+    "descripcion": "GOMA CONICA DELGADA D/LAVATORIO"
+  },
+  {
+    "codigo": "10042",
+    "ciclo": 16.457,
+    "cavidades": 2,
+    "produccionTeorica": 3500.0,
+    "descripcion": "GOMA CONICA GRUESA D/LAVATORIO"
+  },
+  {
+    "codigo": "10043",
+    "ciclo": 33.615,
+    "cavidades": 4,
+    "produccionTeorica": 3427.0,
+    "descripcion": "CUERPO 1 1/4 LAVAPLATO BLANCO"
+  },
+  {
+    "codigo": "10045",
+    "ciclo": 15.507,
+    "cavidades": 4,
+    "produccionTeorica": 7429.0,
+    "descripcion": "GOMA PLANA DESAG 1 1/4 LPLATO"
+  },
+  {
+    "codigo": "10046",
+    "ciclo": 26.446,
+    "cavidades": 2,
+    "produccionTeorica": 2178.0,
+    "descripcion": "CUERPO 11/2 LAVAPLATO BLANCO"
+  },
+  {
+    "codigo": "10048",
+    "ciclo": 14.0,
+    "cavidades": 4,
+    "produccionTeorica": 8228.57,
+    "descripcion": "GOMA PLANA DESAG 11/2 LPLATO"
+  },
+  {
+    "codigo": "10049",
+    "ciclo": 41.86,
+    "cavidades": 4,
+    "produccionTeorica": 2752.0,
+    "descripcion": "TUERCA DESAGUE 11/2 BLANCA"
+  },
+  {
+    "codigo": "10051",
+    "ciclo": 22.0,
+    "cavidades": 16,
+    "produccionTeorica": 20945.45,
+    "descripcion": "GOMA CONICA 11/2"
+  },
+  {
+    "codigo": "10054",
+    "ciclo": 22.812,
+    "cavidades": 4,
+    "produccionTeorica": 5050.0,
+    "descripcion": "TUERCA DESAGUE 1 1/4 BLANCA"
+  },
+  {
+    "codigo": "10059",
+    "ciclo": 28.0,
+    "cavidades": 4,
+    "produccionTeorica": 4114.29,
+    "descripcion": "TAPON DESAGUE 1 1/4"
+  },
+  {
+    "codigo": "10060",
+    "ciclo": 30.517,
+    "cavidades": 4,
+    "produccionTeorica": 3775.0,
+    "descripcion": "TAPON DESAGUE 11/2"
+  },
+  {
+    "codigo": "10072",
+    "ciclo": 44.541,
+    "cavidades": 5,
+    "produccionTeorica": 3233.0,
+    "descripcion": "ZZ MARIPOSA UNION LLAVE"
+  },
+  {
+    "codigo": "10091",
+    "ciclo": 30.786,
+    "cavidades": 2,
+    "produccionTeorica": 1871.0,
+    "descripcion": "CURVA AMPL REGIO BLCA 32 X 40"
+  },
+  {
+    "codigo": "10094",
+    "ciclo": 40.521,
+    "cavidades": 4,
+    "produccionTeorica": 2843.0,
+    "descripcion": "Z RECTA AMPL REGIO 32 X 40 BLCA"
+  },
+  {
+    "codigo": "10100",
+    "ciclo": 25.043,
+    "cavidades": 1,
+    "produccionTeorica": 1150.0,
+    "descripcion": "REJILLA PILETA 4"
+  },
+  {
+    "codigo": "10118",
+    "ciclo": 25.6,
+    "cavidades": 4,
+    "produccionTeorica": 4500.0,
+    "descripcion": "ZZ TAPON NEGRO DESAGUE"
+  },
+  {
+    "codigo": "10121",
+    "ciclo": 35.435,
+    "cavidades": 8,
+    "produccionTeorica": 6502.0,
+    "descripcion": "NIPLE HE/HE 1/2 CELESTE"
+  },
+  {
+    "codigo": "10125",
+    "ciclo": 23.04,
+    "cavidades": 12,
+    "produccionTeorica": 15000.0,
+    "descripcion": "GOMA CONICA NUEVA D/MOVIL"
+  },
+  {
+    "codigo": "10135",
+    "ciclo": 42.0,
+    "cavidades": 18,
+    "produccionTeorica": 12427.0,
+    "descripcion": "GOMA CONICA 1 1/4 (REDUCTORA)"
+  },
+  {
+    "codigo": "10136",
+    "ciclo": 16.0,
+    "cavidades": 4,
+    "produccionTeorica": 7200.0,
+    "descripcion": "GOMA AJUSTE REGIO"
+  },
+  {
+    "codigo": "10138",
+    "ciclo": 28.0,
+    "cavidades": 12,
+    "produccionTeorica": 12342.86,
+    "descripcion": "TUERCA 1 1/4 MULTIUSO BLANCA"
+  },
+  {
+    "codigo": "10139",
+    "ciclo": 39.834,
+    "cavidades": 2,
+    "produccionTeorica": 1446.0,
+    "descripcion": "CURVA AMPLIADORA LOA 40 X 50"
+  },
+  {
+    "codigo": "10141",
+    "ciclo": 29.75,
+    "cavidades": 12,
+    "produccionTeorica": 11617.0,
+    "descripcion": "TUERCA 11/2 MULTIUSO BLANCA"
+  },
+  {
+    "codigo": "10144",
+    "ciclo": 27.342,
+    "cavidades": 3,
+    "produccionTeorica": 3160.0,
+    "descripcion": "ZZ RECTA AMPLIADORA LOA  40 X 50"
+  },
+  {
+    "codigo": "10145",
+    "ciclo": 65.0,
+    "cavidades": 1,
+    "produccionTeorica": 443.08,
+    "descripcion": "TEE REGISTRO SANBCO 110mm S/ARMAR"
+  },
+  {
+    "codigo": "10146",
+    "ciclo": 65.0,
+    "cavidades": 1,
+    "produccionTeorica": 443.08,
+    "descripcion": "TEE REGISTRO SANGRIS 110mm S/ARM"
+  },
+  {
+    "codigo": "10147",
+    "ciclo": 52.056,
+    "cavidades": 4,
+    "produccionTeorica": 2213.0,
+    "descripcion": "TAPA REGISTRO SAN BCO 110mm"
+  },
+  {
+    "codigo": "10148",
+    "ciclo": 52.056,
+    "cavidades": 4,
+    "produccionTeorica": 2213.0,
+    "descripcion": "TAPA REGISTRO SAN GRIS 110mm"
+  },
+  {
+    "codigo": "10149",
+    "ciclo": 42.353,
+    "cavidades": 1,
+    "produccionTeorica": 680.0,
+    "descripcion": "CONJUNTO DUCHA MOVIL"
+  },
+  {
+    "codigo": "10150",
+    "ciclo": 40.0,
+    "cavidades": 4,
+    "produccionTeorica": 2880.0,
+    "descripcion": "CONJUNTO SIFON LOA"
+  },
+  {
+    "codigo": "10151",
+    "ciclo": 44.0,
+    "cavidades": 2,
+    "produccionTeorica": 1309.09,
+    "descripcion": "CONJUNTO SIFON TRANSPARENTE"
+  },
+  {
+    "codigo": "10152",
+    "ciclo": 44.0,
+    "cavidades": 2,
+    "produccionTeorica": 1309.09,
+    "descripcion": "ZZ CONJUNTO SIFON EUROPA"
+  },
+  {
+    "codigo": "10153",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "CONJUNTO SIFON REGIO"
+  },
+  {
+    "codigo": "10154",
+    "ciclo": 30.0,
+    "cavidades": 4,
+    "produccionTeorica": 3840.0,
+    "descripcion": "REGISTRO PILETA UNIVERSAL PP NEGRO 110 mm"
+  },
+  {
+    "codigo": "10162",
+    "ciclo": 29.0,
+    "cavidades": 2,
+    "produccionTeorica": 1986.21,
+    "descripcion": "CONJUNTO SIFON TINA SIN ARMAR"
+  },
+  {
+    "codigo": "10177",
+    "ciclo": 36.776,
+    "cavidades": 8,
+    "produccionTeorica": 6265.0,
+    "descripcion": "ZZ NIPLE HE/HE CONECTOR FLEXIBLE"
+  },
+  {
+    "codigo": "10187",
+    "ciclo": 27.56,
+    "cavidades": 1,
+    "produccionTeorica": 1045.0,
+    "descripcion": "CONJUNTO 2 TAZAS PARA UNIR"
+  },
+  {
+    "codigo": "10203",
+    "ciclo": 22.967,
+    "cavidades": 2,
+    "produccionTeorica": 2508.0,
+    "descripcion": "CUERPO DESGS/REBALSE LAVAPLATO"
+  },
+  {
+    "codigo": "10204",
+    "ciclo": 11.52,
+    "cavidades": 3,
+    "produccionTeorica": 7500.0,
+    "descripcion": "GOMA PLANA REJILLA DESAGUE"
+  },
+  {
+    "codigo": "10205",
+    "ciclo": 20.093,
+    "cavidades": 3,
+    "produccionTeorica": 4300.0,
+    "descripcion": "GOMA CONICA DESAGUE TINA"
+  },
+  {
+    "codigo": "10206",
+    "ciclo": 22.154,
+    "cavidades": 2,
+    "produccionTeorica": 2600.0,
+    "descripcion": "CUERPO DESGC/REBALSE"
+  },
+  {
+    "codigo": "10209",
+    "ciclo": 24.0,
+    "cavidades": 2,
+    "produccionTeorica": 2400.0,
+    "descripcion": "REBALSE REDONDO TINA"
+  },
+  {
+    "codigo": "10210",
+    "ciclo": 25.888,
+    "cavidades": 2,
+    "produccionTeorica": 2225.0,
+    "descripcion": "REBALSE CUADRADO LAVAPLATO"
+  },
+  {
+    "codigo": "10211",
+    "ciclo": 19.2,
+    "cavidades": 4,
+    "produccionTeorica": 6000.0,
+    "descripcion": "GOMA PLANA REBALSE LAVAPLATO"
+  },
+  {
+    "codigo": "10212",
+    "ciclo": 24.253,
+    "cavidades": 4,
+    "produccionTeorica": 4750.0,
+    "descripcion": "GOMA CURVA REBALSE LAVAPLATO"
+  },
+  {
+    "codigo": "10217",
+    "ciclo": 29.091,
+    "cavidades": 2,
+    "produccionTeorica": 1980.0,
+    "descripcion": "VEE S/AB BLANCO 40 X 40 mm"
+  },
+  {
+    "codigo": "10218",
+    "ciclo": 33.237,
+    "cavidades": 2,
+    "produccionTeorica": 1733.0,
+    "descripcion": "VEE S/AB BLANCO 50 X 50 mm"
+  },
+  {
+    "codigo": "10219",
+    "ciclo": 50.0,
+    "cavidades": 2,
+    "produccionTeorica": 1152.0,
+    "descripcion": "VEE S/AB BLANCO 75 X 75 mm"
+  },
+  {
+    "codigo": "10220",
+    "ciclo": 47.136,
+    "cavidades": 1,
+    "produccionTeorica": 611.0,
+    "descripcion": "VEE S/AB BLANCO 110 X 110 mm"
+  },
+  {
+    "codigo": "10223",
+    "ciclo": 40.0,
+    "cavidades": 2,
+    "produccionTeorica": 1440.0,
+    "descripcion": "PILETA S/ARMAR 110 50/40 H"
+  },
+  {
+    "codigo": "10225",
+    "ciclo": 48.567,
+    "cavidades": 1,
+    "produccionTeorica": 593.0,
+    "descripcion": "ZZ PILETA S/ARMAR 110 X 75            H"
+  },
+  {
+    "codigo": "10228",
+    "ciclo": 50.0,
+    "cavidades": 1,
+    "produccionTeorica": 576.0,
+    "descripcion": "ZZ PILETA S/ARMAR 110 X 75 5040"
+  },
+  {
+    "codigo": "10229",
+    "ciclo": 53.039,
+    "cavidades": 1,
+    "produccionTeorica": 543.0,
+    "descripcion": "ZZ PILETA S/ARMAR 110 5040 5040"
+  },
+  {
+    "codigo": "10231",
+    "ciclo": 46.452,
+    "cavidades": 1,
+    "produccionTeorica": 620.0,
+    "descripcion": "ZZ PILETA S/ARMAR 110 X 75 50/40 50/40 50"
+  },
+  {
+    "codigo": "10233",
+    "ciclo": 46.0,
+    "cavidades": 2,
+    "produccionTeorica": 1252.17,
+    "descripcion": "VEE S/AB BLANCO 110 X 75 mm"
+  },
+  {
+    "codigo": "10234",
+    "ciclo": 36.0,
+    "cavidades": 1,
+    "produccionTeorica": 800.0,
+    "descripcion": "VEE S/AB BLANCO 110 X 50 mm"
+  },
+  {
+    "codigo": "10235",
+    "ciclo": 41.143,
+    "cavidades": 1,
+    "produccionTeorica": 700.0,
+    "descripcion": "VEE S/AB BLANCO 110 X 40 mm"
+  },
+  {
+    "codigo": "10237",
+    "ciclo": 42.478,
+    "cavidades": 2,
+    "produccionTeorica": 1356.0,
+    "descripcion": "COPLA REPAR S/AB BLANCO 110 mm"
+  },
+  {
+    "codigo": "20106",
+    "ciclo": 35.0,
+    "cavidades": 16,
+    "produccionTeorica": 13165.71,
+    "descripcion": "CODO 40 X 87 SANITARIO"
+  },
+  {
+    "codigo": "20108",
+    "ciclo": 25.6,
+    "cavidades": 8,
+    "produccionTeorica": 9000.0,
+    "descripcion": "ZZ PITUTO"
+  },
+  {
+    "codigo": "20112",
+    "ciclo": 25.6,
+    "cavidades": 4,
+    "produccionTeorica": 4500.0,
+    "descripcion": "BUSHING PVC 11/2 X 11/4"
+  },
+  {
+    "codigo": "20128",
+    "ciclo": 41.63,
+    "cavidades": 16,
+    "produccionTeorica": 11069.0,
+    "descripcion": "COPLA PVC 20 mm CEMENTAR"
+  },
+  {
+    "codigo": "20129",
+    "ciclo": 22.16,
+    "cavidades": 8,
+    "produccionTeorica": 10397.0,
+    "descripcion": "TERMINAL HE PVC 20 mm CEMENTAR"
+  },
+  {
+    "codigo": "20130",
+    "ciclo": 44.0,
+    "cavidades": 16,
+    "produccionTeorica": 10472.73,
+    "descripcion": "TERMINAL HI 20 X 1/2 PVC"
+  },
+  {
+    "codigo": "20131",
+    "ciclo": 41.0,
+    "cavidades": 8,
+    "produccionTeorica": 5619.51,
+    "descripcion": "TEE PVC 20 mm CEMENTAR"
+  },
+  {
+    "codigo": "20132",
+    "ciclo": 50.0,
+    "cavidades": 24,
+    "produccionTeorica": 13824.0,
+    "descripcion": "CODO PVC 20 mm CEMENTAR"
+  },
+  {
+    "codigo": "20134",
+    "ciclo": 46.043,
+    "cavidades": 2,
+    "produccionTeorica": 1251.0,
+    "descripcion": "TEE HI PVC 20 X 1/2 CEMENTAR"
+  },
+  {
+    "codigo": "20135",
+    "ciclo": 30.951,
+    "cavidades": 2,
+    "produccionTeorica": 1861.0,
+    "descripcion": "BUSHING PVC 1 X 3/4"
+  },
+  {
+    "codigo": "20137",
+    "ciclo": 33.508,
+    "cavidades": 2,
+    "produccionTeorica": 1719.0,
+    "descripcion": "MANILLA LLAVE PASO"
+  },
+  {
+    "codigo": "20138",
+    "ciclo": 63.297,
+    "cavidades": 4,
+    "produccionTeorica": 1820.0,
+    "descripcion": "CUERPO LLAVE PASO 20 mm"
+  },
+  {
+    "codigo": "20139",
+    "ciclo": 31.018,
+    "cavidades": 4,
+    "produccionTeorica": 3714.0,
+    "descripcion": "VASTAGO LLAVE PASO"
+  },
+  {
+    "codigo": "20141",
+    "ciclo": 44.802,
+    "cavidades": 6,
+    "produccionTeorica": 3857.0,
+    "descripcion": "TUERCA LLAVE PASO"
+  },
+  {
+    "codigo": "20143",
+    "ciclo": 47.603,
+    "cavidades": 8,
+    "produccionTeorica": 4840.0,
+    "descripcion": "CODO PVC 25 mm CEMENTAR"
+  },
+  {
+    "codigo": "20144",
+    "ciclo": 49.231,
+    "cavidades": 8,
+    "produccionTeorica": 4680.0,
+    "descripcion": "TEE PVC 25 mm CEMENTAR"
+  },
+  {
+    "codigo": "20146",
+    "ciclo": 30.72,
+    "cavidades": 8,
+    "produccionTeorica": 7500.0,
+    "descripcion": "BUJE CORTO PVC 25 X 20 GN"
+  },
+  {
+    "codigo": "20147",
+    "ciclo": 30.476,
+    "cavidades": 4,
+    "produccionTeorica": 3780.0,
+    "descripcion": "TERMINAL HE PVC 25 mm CEMENTAR"
+  },
+  {
+    "codigo": "20148",
+    "ciclo": 44.773,
+    "cavidades": 4,
+    "produccionTeorica": 2573.0,
+    "descripcion": "TERMINAL HI 25 X 3/4 PVC"
+  },
+  {
+    "codigo": "20149",
+    "ciclo": 44.0,
+    "cavidades": 8,
+    "produccionTeorica": 5236.36,
+    "descripcion": "CODO PVC 32 mm CEMENTAR"
+  },
+  {
+    "codigo": "20150",
+    "ciclo": 45.0,
+    "cavidades": 4,
+    "produccionTeorica": 2560.0,
+    "descripcion": "TEE PVC 32 mm CEMENTAR"
+  },
+  {
+    "codigo": "20151",
+    "ciclo": 31.0,
+    "cavidades": 4,
+    "produccionTeorica": 3716.13,
+    "descripcion": "TERMINAL HE PVC 32 mm CEMENTAR"
+  },
+  {
+    "codigo": "20152",
+    "ciclo": 50.615,
+    "cavidades": 4,
+    "produccionTeorica": 2276.0,
+    "descripcion": "TERMINAL HI 32 X 1 PVC"
+  },
+  {
+    "codigo": "20153",
+    "ciclo": 44.037,
+    "cavidades": 5,
+    "produccionTeorica": 3270.0,
+    "descripcion": "BUJE CORTO PVC 32 X 20"
+  },
+  {
+    "codigo": "20154",
+    "ciclo": 32.0,
+    "cavidades": 8,
+    "produccionTeorica": 7200.0,
+    "descripcion": "BUJE CORTO PVC 32 X 25"
+  },
+  {
+    "codigo": "20157",
+    "ciclo": 30.496,
+    "cavidades": 5,
+    "produccionTeorica": 4722.0,
+    "descripcion": "TAPA GORRO PVC 32 mm"
+  },
+  {
+    "codigo": "20158",
+    "ciclo": 49.87,
+    "cavidades": 4,
+    "produccionTeorica": 2310.0,
+    "descripcion": "CODO PVC 40 mm CEMENTAR"
+  },
+  {
+    "codigo": "20159",
+    "ciclo": 56.0,
+    "cavidades": 4,
+    "produccionTeorica": 2057.14,
+    "descripcion": "TEE PVC 40 mm CEMENTAR"
+  },
+  {
+    "codigo": "20160",
+    "ciclo": 70.0,
+    "cavidades": 8,
+    "produccionTeorica": 3291.43,
+    "descripcion": "CODO PVC 50 mm CEMENTAR"
+  },
+  {
+    "codigo": "20161",
+    "ciclo": 40.153,
+    "cavidades": 4,
+    "produccionTeorica": 2869.0,
+    "descripcion": "COPLA PVC 25 mm CEMENTAR"
+  },
+  {
+    "codigo": "20162",
+    "ciclo": 72.271,
+    "cavidades": 4,
+    "produccionTeorica": 1594.0,
+    "descripcion": "TERMINAL HE PVC 40 mm CEMENTAR"
+  },
+  {
+    "codigo": "20163",
+    "ciclo": 61.935,
+    "cavidades": 4,
+    "produccionTeorica": 1860.0,
+    "descripcion": "TERMINAL HI 40 X 11/4 PVC"
+  },
+  {
+    "codigo": "20165",
+    "ciclo": 87.273,
+    "cavidades": 2,
+    "produccionTeorica": 660.0,
+    "descripcion": "TEE PVC 50 mm CEMENTAR"
+  },
+  {
+    "codigo": "20166",
+    "ciclo": 69.0,
+    "cavidades": 4,
+    "produccionTeorica": 1669.57,
+    "descripcion": "TERMINAL HE PVC 50 mm CEMENTAR"
+  },
+  {
+    "codigo": "20167",
+    "ciclo": 73.563,
+    "cavidades": 4,
+    "produccionTeorica": 1566.0,
+    "descripcion": "TERMINAL HI 50 X 11/2 PVC"
+  },
+  {
+    "codigo": "20169",
+    "ciclo": 19.2,
+    "cavidades": 8,
+    "produccionTeorica": 12000.0,
+    "descripcion": "ABRAZADERA PVC 25 mm HIDRAUL"
+  },
+  {
+    "codigo": "20170",
+    "ciclo": 57.03,
+    "cavidades": 4,
+    "produccionTeorica": 2020.0,
+    "descripcion": "COPLA PVC 50 mm CEMENTAR"
+  },
+  {
+    "codigo": "20171",
+    "ciclo": 48.0,
+    "cavidades": 4,
+    "produccionTeorica": 2400.0,
+    "descripcion": "COPLA PVC 40 mm CEMENTAR"
+  },
+  {
+    "codigo": "20173",
+    "ciclo": 82.051,
+    "cavidades": 2,
+    "produccionTeorica": 702.0,
+    "descripcion": "CODO PVC 63 mm CEMENTAR PH"
+  },
+  {
+    "codigo": "20174",
+    "ciclo": 110.13,
+    "cavidades": 2,
+    "produccionTeorica": 523.02,
+    "descripcion": "TEE PVC 63 mm CEMENTAR"
+  },
+  {
+    "codigo": "20176",
+    "ciclo": 32.561,
+    "cavidades": 4,
+    "produccionTeorica": 3538.0,
+    "descripcion": "BUJE CORTO PVC 40 X 32"
+  },
+  {
+    "codigo": "20183",
+    "ciclo": 25.919,
+    "cavidades": 6,
+    "produccionTeorica": 6667.0,
+    "descripcion": "UNION DOBLE 3/8"
+  },
+  {
+    "codigo": "20184",
+    "ciclo": 28.0,
+    "cavidades": 32,
+    "produccionTeorica": 32914.29,
+    "descripcion": "UNION DOBLE 1/2"
+  },
+  {
+    "codigo": "20185",
+    "ciclo": 24.0,
+    "cavidades": 8,
+    "produccionTeorica": 9600.0,
+    "descripcion": "UNION DOBLE 3/4"
+  },
+  {
+    "codigo": "20186",
+    "ciclo": 23.491,
+    "cavidades": 2,
+    "produccionTeorica": 2452.0,
+    "descripcion": "UNION DOBLE 1"
+  },
+  {
+    "codigo": "20187",
+    "ciclo": 24.828,
+    "cavidades": 2,
+    "produccionTeorica": 2320.0,
+    "descripcion": "UNION DOBLE 1 1/4"
+  },
+  {
+    "codigo": "20188",
+    "ciclo": 37.696,
+    "cavidades": 2,
+    "produccionTeorica": 1528.0,
+    "descripcion": "UNION DOBLE 11/2"
+  },
+  {
+    "codigo": "20189",
+    "ciclo": 26.866,
+    "cavidades": 1,
+    "produccionTeorica": 1072.0,
+    "descripcion": "UNION DOBLE 2"
+  },
+  {
+    "codigo": "20190",
+    "ciclo": 44.582,
+    "cavidades": 1,
+    "produccionTeorica": 646.0,
+    "descripcion": "UNION DOBLE 3"
+  },
+  {
+    "codigo": "20191",
+    "ciclo": 30.0,
+    "cavidades": 16,
+    "produccionTeorica": 15360.0,
+    "descripcion": "TERMINAL HE 1/2"
+  },
+  {
+    "codigo": "20192",
+    "ciclo": 21.333,
+    "cavidades": 4,
+    "produccionTeorica": 5400.0,
+    "descripcion": "TERMINAL HE 3/4"
+  },
+  {
+    "codigo": "20193",
+    "ciclo": 31.0,
+    "cavidades": 8,
+    "produccionTeorica": 7432.26,
+    "descripcion": "TERMINAL HE 1"
+  },
+  {
+    "codigo": "20194",
+    "ciclo": 27.429,
+    "cavidades": 2,
+    "produccionTeorica": 2100.0,
+    "descripcion": "TERMINAL HE 1 1/4"
+  },
+  {
+    "codigo": "20195",
+    "ciclo": 31.579,
+    "cavidades": 2,
+    "produccionTeorica": 1824.0,
+    "descripcion": "TERMINAL HE 11/2"
+  },
+  {
+    "codigo": "20196",
+    "ciclo": 45.0,
+    "cavidades": 1,
+    "produccionTeorica": 640.0,
+    "descripcion": "TERMINAL HE 2"
+  },
+  {
+    "codigo": "20197",
+    "ciclo": 40.0,
+    "cavidades": 6,
+    "produccionTeorica": 4320.0,
+    "descripcion": "TERMINAL HI 1/2"
+  },
+  {
+    "codigo": "20198",
+    "ciclo": 43.0,
+    "cavidades": 2,
+    "produccionTeorica": 1339.53,
+    "descripcion": "TERMINAL HI 3/4"
+  },
+  {
+    "codigo": "20199",
+    "ciclo": 43.308,
+    "cavidades": 2,
+    "produccionTeorica": 1330.0,
+    "descripcion": "TERMINAL HI 1"
+  },
+  {
+    "codigo": "20200",
+    "ciclo": 52.364,
+    "cavidades": 2,
+    "produccionTeorica": 1100.0,
+    "descripcion": "TERMINAL HI 1 1/4"
+  },
+  {
+    "codigo": "20201",
+    "ciclo": 51.155,
+    "cavidades": 1,
+    "produccionTeorica": 563.0,
+    "descripcion": "TERMINAL HI 11/2"
+  },
+  {
+    "codigo": "20202",
+    "ciclo": 41.143,
+    "cavidades": 1,
+    "produccionTeorica": 700.0,
+    "descripcion": "TERMINAL HI 2"
+  },
+  {
+    "codigo": "20203",
+    "ciclo": 21.86,
+    "cavidades": 4,
+    "produccionTeorica": 5270.0,
+    "descripcion": "TEE 1/2"
+  },
+  {
+    "codigo": "20204",
+    "ciclo": 29.0,
+    "cavidades": 2,
+    "produccionTeorica": 1986.21,
+    "descripcion": "TEE 3/4"
+  },
+  {
+    "codigo": "20205",
+    "ciclo": 24.0,
+    "cavidades": 2,
+    "produccionTeorica": 2400.0,
+    "descripcion": "TEE 1"
+  },
+  {
+    "codigo": "20206",
+    "ciclo": 36.068,
+    "cavidades": 2,
+    "produccionTeorica": 1597.0,
+    "descripcion": "TEE 1 1/4"
+  },
+  {
+    "codigo": "20207",
+    "ciclo": 49.147,
+    "cavidades": 1,
+    "produccionTeorica": 586.0,
+    "descripcion": "TEE 11/2"
+  },
+  {
+    "codigo": "20208",
+    "ciclo": 50.438,
+    "cavidades": 1,
+    "produccionTeorica": 571.0,
+    "descripcion": "TEE 2"
+  },
+  {
+    "codigo": "20209",
+    "ciclo": 36.982,
+    "cavidades": 4,
+    "produccionTeorica": 3115.0,
+    "descripcion": "CODO 3/4"
+  },
+  {
+    "codigo": "20210",
+    "ciclo": 39.0,
+    "cavidades": 4,
+    "produccionTeorica": 2953.85,
+    "descripcion": "CODO 1"
+  },
+  {
+    "codigo": "20211",
+    "ciclo": 35.316,
+    "cavidades": 2,
+    "produccionTeorica": 1631.0,
+    "descripcion": "CODO 1 1/4"
+  },
+  {
+    "codigo": "20212",
+    "ciclo": 50.262,
+    "cavidades": 2,
+    "produccionTeorica": 1146.0,
+    "descripcion": "CODO 11/2"
+  },
+  {
+    "codigo": "20213",
+    "ciclo": 50.0,
+    "cavidades": 1,
+    "produccionTeorica": 576.0,
+    "descripcion": "CODO 2"
+  },
+  {
+    "codigo": "20214",
+    "ciclo": 25.319,
+    "cavidades": 4,
+    "produccionTeorica": 4550.0,
+    "descripcion": "REDUCCION 3/4 X 1/2"
+  },
+  {
+    "codigo": "20215",
+    "ciclo": 20.586,
+    "cavidades": 2,
+    "produccionTeorica": 2798.0,
+    "descripcion": "REDUCCION 1 X 3/4"
+  },
+  {
+    "codigo": "20216",
+    "ciclo": 35.143,
+    "cavidades": 2,
+    "produccionTeorica": 1639.0,
+    "descripcion": "REDUCCION 1 1/4 X 1"
+  },
+  {
+    "codigo": "20217",
+    "ciclo": 32.971,
+    "cavidades": 2,
+    "produccionTeorica": 1747.0,
+    "descripcion": "REDUCCION 11/2 X 1 1/4"
+  },
+  {
+    "codigo": "20219",
+    "ciclo": 25.0,
+    "cavidades": 2,
+    "produccionTeorica": 2304.0,
+    "descripcion": "TEE REDUCCION 3/4 X 1/2"
+  },
+  {
+    "codigo": "20220",
+    "ciclo": 24.0,
+    "cavidades": 2,
+    "produccionTeorica": 2400.0,
+    "descripcion": "TEE REDUCCION 1 X 1/2"
+  },
+  {
+    "codigo": "20221",
+    "ciclo": 30.316,
+    "cavidades": 2,
+    "produccionTeorica": 1900.0,
+    "descripcion": "TEE REDUCCION 1 X 3/4"
+  },
+  {
+    "codigo": "20222",
+    "ciclo": 55.278,
+    "cavidades": 2,
+    "produccionTeorica": 1042.0,
+    "descripcion": "TEE REDUCCION 1 1/2 X 1"
+  },
+  {
+    "codigo": "20224",
+    "ciclo": 42.6,
+    "cavidades": 4,
+    "produccionTeorica": 2704.23,
+    "descripcion": "CODO HI 1/2"
+  },
+  {
+    "codigo": "20225",
+    "ciclo": 20.0,
+    "cavidades": 4,
+    "produccionTeorica": 5760.0,
+    "descripcion": "CODO 1/2"
+  },
+  {
+    "codigo": "20226",
+    "ciclo": 39.0,
+    "cavidades": 2,
+    "produccionTeorica": 1476.92,
+    "descripcion": "REDUCCION 2 X 11/2"
+  },
+  {
+    "codigo": "20227",
+    "ciclo": 78.904,
+    "cavidades": 2,
+    "produccionTeorica": 730.0,
+    "descripcion": "TEE REDUCCION 2 X 1 1/2"
+  },
+  {
+    "codigo": "20285",
+    "ciclo": 28.44,
+    "cavidades": 6,
+    "produccionTeorica": 6076.0,
+    "descripcion": "TAPA GORRO PVC 20 mm HOF"
+  },
+  {
+    "codigo": "20359",
+    "ciclo": 52.844,
+    "cavidades": 2,
+    "produccionTeorica": 1090.0,
+    "descripcion": "UNION AMERICANA 20 mm H"
+  },
+  {
+    "codigo": "20365",
+    "ciclo": 43.211,
+    "cavidades": 2,
+    "produccionTeorica": 1333.0,
+    "descripcion": "CUERPO LLAVE PASO 25 mm"
+  },
+  {
+    "codigo": "20366",
+    "ciclo": 51.0,
+    "cavidades": 2,
+    "produccionTeorica": 1129.41,
+    "descripcion": "LLAVE PASO PVC 25 mm CEMENTAR"
+  },
+  {
+    "codigo": "20385",
+    "ciclo": 15.158,
+    "cavidades": 2,
+    "produccionTeorica": 3800.0,
+    "descripcion": "ZZ CONECTOR URINARIO"
+  },
+  {
+    "codigo": "20392",
+    "ciclo": 13.824,
+    "cavidades": 6,
+    "produccionTeorica": 12500.0,
+    "descripcion": "GOMA PLANA TUERCA C/COLA 1 1/2"
+  },
+  {
+    "codigo": "20393",
+    "ciclo": 42.0,
+    "cavidades": 4,
+    "produccionTeorica": 2742.86,
+    "descripcion": "TUERCA CON COLA 1 1/2"
+  },
+  {
+    "codigo": "20402",
+    "ciclo": 54.0,
+    "cavidades": 12,
+    "produccionTeorica": 6400.0,
+    "descripcion": "TUERCA CON COLA 1 1/4"
+  },
+  {
+    "codigo": "20406",
+    "ciclo": 27.149,
+    "cavidades": 5,
+    "produccionTeorica": 5304.0,
+    "descripcion": "TAPA TORNILLO HE PVC 1/2"
+  },
+  {
+    "codigo": "20413",
+    "ciclo": 104.727,
+    "cavidades": 2,
+    "produccionTeorica": 550.0,
+    "descripcion": "ZZ COLLARIN  50 X    1/2       (S/ARMAR)"
+  },
+  {
+    "codigo": "20414",
+    "ciclo": 170.667,
+    "cavidades": 4,
+    "produccionTeorica": 675.0,
+    "descripcion": "Z COLLARIN 50 X 1 (S/ARMAR)"
+  },
+  {
+    "codigo": "20415",
+    "ciclo": 73.0,
+    "cavidades": 1,
+    "produccionTeorica": 394.52,
+    "descripcion": "ZZ COLLARIN 110 X   12        (SARMAR)"
+  },
+  {
+    "codigo": "20416",
+    "ciclo": 110.77,
+    "cavidades": 1,
+    "produccionTeorica": 260.0,
+    "descripcion": "ZZ COLLARIN 110 X  1           (S/ARMAR)"
+  },
+  {
+    "codigo": "20429",
+    "ciclo": 224.125,
+    "cavidades": 1,
+    "produccionTeorica": 128.5,
+    "descripcion": "ZZ COLLARIN 110 X   3/4        (S/ARMAR)"
+  },
+  {
+    "codigo": "20431",
+    "ciclo": 34.0,
+    "cavidades": 2,
+    "produccionTeorica": 1694.12,
+    "descripcion": "COPLA 110 mm SANITARIA"
+  },
+  {
+    "codigo": "20432",
+    "ciclo": 189.163,
+    "cavidades": 4,
+    "produccionTeorica": 609.0,
+    "descripcion": "ZZ COLLARIN 50 X 3/4     (S/ARMAR)"
+  },
+  {
+    "codigo": "20438",
+    "ciclo": 27.52,
+    "cavidades": 2,
+    "produccionTeorica": 2093.0,
+    "descripcion": "COPLA 75 mm SANITARIA"
+  },
+  {
+    "codigo": "20439",
+    "ciclo": 50.0,
+    "cavidades": 6,
+    "produccionTeorica": 3456.0,
+    "descripcion": "CODO 110 X 87 SANITARIO"
+  },
+  {
+    "codigo": "20440",
+    "ciclo": 43.0,
+    "cavidades": 2,
+    "produccionTeorica": 1339.53,
+    "descripcion": "TEE 110 X 110 SANITARIA"
+  },
+  {
+    "codigo": "20441",
+    "ciclo": 29.876,
+    "cavidades": 2,
+    "produccionTeorica": 1928.0,
+    "descripcion": "TEE 50 X 50 SANITARIA"
+  },
+  {
+    "codigo": "20442",
+    "ciclo": 27.273,
+    "cavidades": 2,
+    "produccionTeorica": 2112.0,
+    "descripcion": "TEE 40 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20443",
+    "ciclo": 53.0,
+    "cavidades": 2,
+    "produccionTeorica": 1086.79,
+    "descripcion": "TEE 110 X 75 SANITARIA"
+  },
+  {
+    "codigo": "20444",
+    "ciclo": 31.001,
+    "cavidades": 2,
+    "produccionTeorica": 1858.0,
+    "descripcion": "TEE 50 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20445",
+    "ciclo": 43.439,
+    "cavidades": 1,
+    "produccionTeorica": 663.0,
+    "descripcion": "TEE 110 X 50 SANITARIA"
+  },
+  {
+    "codigo": "20446",
+    "ciclo": 41.32,
+    "cavidades": 1,
+    "produccionTeorica": 697.0,
+    "descripcion": "TEE 110 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20447",
+    "ciclo": 24.51,
+    "cavidades": 3,
+    "produccionTeorica": 3525.09,
+    "descripcion": "COPLA 40 mm SANITARIA"
+  },
+  {
+    "codigo": "20448",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "COPLA 50 mm SANITARIA"
+  },
+  {
+    "codigo": "20449",
+    "ciclo": 45.0,
+    "cavidades": 8,
+    "produccionTeorica": 5120.0,
+    "descripcion": "CODO 75 X 87 SANITARIO"
+  },
+  {
+    "codigo": "20450",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "REDUCCION 50 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20451",
+    "ciclo": 25.0,
+    "cavidades": 4,
+    "produccionTeorica": 4608.0,
+    "descripcion": "TAPA GORRO SANITARIO 110 mm"
+  },
+  {
+    "codigo": "20452",
+    "ciclo": 43.769,
+    "cavidades": 2,
+    "produccionTeorica": 1316.0,
+    "descripcion": "REDUCCION 110 X 50 SANITARIO"
+  },
+  {
+    "codigo": "20453",
+    "ciclo": 43.049,
+    "cavidades": 2,
+    "produccionTeorica": 1338.0,
+    "descripcion": "REDUCCION 110 X 75 SANITARIA"
+  },
+  {
+    "codigo": "20460",
+    "ciclo": 22.0,
+    "cavidades": 2,
+    "produccionTeorica": 2618.18,
+    "descripcion": "REDUCCION 75 X 50 SANITARIA"
+  },
+  {
+    "codigo": "20462",
+    "ciclo": 24.913,
+    "cavidades": 2,
+    "produccionTeorica": 2312.0,
+    "descripcion": "CODO 40 X 45 SANITARIO"
+  },
+  {
+    "codigo": "20463",
+    "ciclo": 30.252,
+    "cavidades": 2,
+    "produccionTeorica": 1904.0,
+    "descripcion": "CODO 50 X 45 SANITARIO"
+  },
+  {
+    "codigo": "20464",
+    "ciclo": 32.071,
+    "cavidades": 2,
+    "produccionTeorica": 1796.0,
+    "descripcion": "CODO 75 X 45 SANITARIO"
+  },
+  {
+    "codigo": "20466",
+    "ciclo": 47.0,
+    "cavidades": 2,
+    "produccionTeorica": 1225.53,
+    "descripcion": "TEE 75 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20467",
+    "ciclo": 49.655,
+    "cavidades": 2,
+    "produccionTeorica": 1160.0,
+    "descripcion": "TEE 75 X 50 SANITARIA"
+  },
+  {
+    "codigo": "20468",
+    "ciclo": 49.0,
+    "cavidades": 2,
+    "produccionTeorica": 1175.51,
+    "descripcion": "TEE 75 X 75 SANITARIA"
+  },
+  {
+    "codigo": "20469",
+    "ciclo": 29.091,
+    "cavidades": 2,
+    "produccionTeorica": 1980.0,
+    "descripcion": "VEE 40 X 40 SANITARIA"
+  },
+  {
+    "codigo": "20470",
+    "ciclo": 33.237,
+    "cavidades": 2,
+    "produccionTeorica": 1733.0,
+    "descripcion": "VEE 50 X 50 SANITARIA"
+  },
+  {
+    "codigo": "20471",
+    "ciclo": 42.0,
+    "cavidades": 2,
+    "produccionTeorica": 1371.43,
+    "descripcion": "VEE 75 X 75 SANITARIA"
+  },
+  {
+    "codigo": "20472",
+    "ciclo": 47.136,
+    "cavidades": 1,
+    "produccionTeorica": 611.0,
+    "descripcion": "VEE 110 X 110 SANITARIA"
+  },
+  {
+    "codigo": "20473",
+    "ciclo": 23.226,
+    "cavidades": 4,
+    "produccionTeorica": 4960.0,
+    "descripcion": "TAPA GORRO SANITARIO 40 mm"
+  },
+  {
+    "codigo": "20474",
+    "ciclo": 22.588,
+    "cavidades": 4,
+    "produccionTeorica": 5100.0,
+    "descripcion": "TAPA GORRO SANITARIO 50 mm"
+  },
+  {
+    "codigo": "20475",
+    "ciclo": 30.72,
+    "cavidades": 4,
+    "produccionTeorica": 3750.0,
+    "descripcion": "TAPA GORRO SANITARIO 75 mm"
+  },
+  {
+    "codigo": "20478",
+    "ciclo": 171.429,
+    "cavidades": 1,
+    "produccionTeorica": 168.0,
+    "descripcion": "COLLAR DE ARRANQUE REFORZADO  110 X 1 1/2\""
+  },
+  {
+    "codigo": "20481",
+    "ciclo": 100.348,
+    "cavidades": 1,
+    "produccionTeorica": 287.0,
+    "descripcion": "COLLAR DE ARRANQUE REFORZADO  110 X 1 1/4\""
+  },
+  {
+    "codigo": "20520",
+    "ciclo": 23.704,
+    "cavidades": 4,
+    "produccionTeorica": 4860.0,
+    "descripcion": "TAPA GORRO SANBLANCO 40 mm H"
+  },
+  {
+    "codigo": "20521",
+    "ciclo": 18.947,
+    "cavidades": 3,
+    "produccionTeorica": 4560.0,
+    "descripcion": "TAPA GORRO SANBLANCO 50 mm H"
+  },
+  {
+    "codigo": "20522",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "TAPA GORRO SANBLANCO 75 mm H"
+  },
+  {
+    "codigo": "20523",
+    "ciclo": 22.154,
+    "cavidades": 2,
+    "produccionTeorica": 2600.0,
+    "descripcion": "TAPA GORRO SANBLANCO 110 mm H"
+  },
+  {
+    "codigo": "20531",
+    "ciclo": 26.182,
+    "cavidades": 1,
+    "produccionTeorica": 1100.0,
+    "descripcion": "REJILLA PILETA 4 BLANCA"
+  },
+  {
+    "codigo": "20538",
+    "ciclo": 40.0,
+    "cavidades": 4,
+    "produccionTeorica": 2880.0,
+    "descripcion": "REJILLA PILETA UNIVERSAL PP BLANCA 110mm"
+  },
+  {
+    "codigo": "20539",
+    "ciclo": 44.0,
+    "cavidades": 16,
+    "produccionTeorica": 10472.73,
+    "descripcion": "TAPA GORRO HI 20 X 1/2"
+  },
+  {
+    "codigo": "20540",
+    "ciclo": 25.841,
+    "cavidades": 2,
+    "produccionTeorica": 2229.0,
+    "descripcion": "CODO S/AB BLANCO 40 X 45"
+  },
+  {
+    "codigo": "20541",
+    "ciclo": 35.0,
+    "cavidades": 8,
+    "produccionTeorica": 6582.86,
+    "descripcion": "CODO S/AB BLANCO 40 X 87"
+  },
+  {
+    "codigo": "20542",
+    "ciclo": 28.8,
+    "cavidades": 2,
+    "produccionTeorica": 2000.0,
+    "descripcion": "CODO S/AB BLANCO 50 X 45"
+  },
+  {
+    "codigo": "20543",
+    "ciclo": 40.0,
+    "cavidades": 8,
+    "produccionTeorica": 5760.0,
+    "descripcion": "CODO S/AB BLANCO 50 X 87"
+  },
+  {
+    "codigo": "20544",
+    "ciclo": 34.45,
+    "cavidades": 2,
+    "produccionTeorica": 1671.99,
+    "descripcion": "CODO S/AB BLANCO 75 X 45"
+  },
+  {
+    "codigo": "20545",
+    "ciclo": 37.161,
+    "cavidades": 2,
+    "produccionTeorica": 1550.0,
+    "descripcion": "CODO S/AB BLANCO 75 X 87"
+  },
+  {
+    "codigo": "20546",
+    "ciclo": 53.0,
+    "cavidades": 2,
+    "produccionTeorica": 1086.79,
+    "descripcion": "ZZ CODO S/AB BLANCO 110 X 45"
+  },
+  {
+    "codigo": "20547",
+    "ciclo": 39.184,
+    "cavidades": 1,
+    "produccionTeorica": 735.0,
+    "descripcion": "CODO S/AB BLANCO 110 X 87"
+  },
+  {
+    "codigo": "20548",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "COPLA S/AB BLANCO 40 mm"
+  },
+  {
+    "codigo": "20549",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "COPLA S/AB BLANCO 50 mm"
+  },
+  {
+    "codigo": "20550",
+    "ciclo": 31.876,
+    "cavidades": 2,
+    "produccionTeorica": 1807.0,
+    "descripcion": "COPLA S/AB BLANCO 75 mm"
+  },
+  {
+    "codigo": "20551",
+    "ciclo": 42.478,
+    "cavidades": 2,
+    "produccionTeorica": 1356.0,
+    "descripcion": "COPLA S/AB BLANCO 110 mm"
+  },
+  {
+    "codigo": "20552",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "REDUCS/AB BLANCO 50 X 40"
+  },
+  {
+    "codigo": "20553",
+    "ciclo": 35.556,
+    "cavidades": 2,
+    "produccionTeorica": 1620.0,
+    "descripcion": "REDUCS/AB BLANCO 75 X 50"
+  },
+  {
+    "codigo": "20554",
+    "ciclo": 48.0,
+    "cavidades": 2,
+    "produccionTeorica": 1200.0,
+    "descripcion": "REDUCS/AB BLANCO 110 X 50"
+  },
+  {
+    "codigo": "20555",
+    "ciclo": 45.0,
+    "cavidades": 2,
+    "produccionTeorica": 1280.0,
+    "descripcion": "REDUC. S/AB BLANCO 110 X 75"
+  },
+  {
+    "codigo": "20556",
+    "ciclo": 27.0,
+    "cavidades": 2,
+    "produccionTeorica": 2133.33,
+    "descripcion": "TEE S/AB BLANCO 40 X 40"
+  },
+  {
+    "codigo": "20557",
+    "ciclo": 31.001,
+    "cavidades": 2,
+    "produccionTeorica": 1858.0,
+    "descripcion": "TEE S/AB BLANCO 50 X 40"
+  },
+  {
+    "codigo": "20558",
+    "ciclo": 29.876,
+    "cavidades": 2,
+    "produccionTeorica": 1928.0,
+    "descripcion": "TEE S/AB BLANCO 50 X 50"
+  },
+  {
+    "codigo": "20559",
+    "ciclo": 37.57,
+    "cavidades": 2,
+    "produccionTeorica": 1533.14,
+    "descripcion": "TEE S/AB BLANCO 75 X 40"
+  },
+  {
+    "codigo": "20560",
+    "ciclo": 55.0,
+    "cavidades": 2,
+    "produccionTeorica": 1047.27,
+    "descripcion": "TEE S/AB BLANCO 75 X 50"
+  },
+  {
+    "codigo": "20561",
+    "ciclo": 50.262,
+    "cavidades": 2,
+    "produccionTeorica": 1146.0,
+    "descripcion": "TEE S/AB BLANCO 75 X 75"
+  },
+  {
+    "codigo": "20562",
+    "ciclo": 41.32,
+    "cavidades": 1,
+    "produccionTeorica": 697.0,
+    "descripcion": "TEE S/AB BLANCO 110 X 40"
+  },
+  {
+    "codigo": "20563",
+    "ciclo": 38.0,
+    "cavidades": 1,
+    "produccionTeorica": 757.0,
+    "descripcion": "TEE S/AB BLANCO 110 X 50"
+  },
+  {
+    "codigo": "20564",
+    "ciclo": 43.243,
+    "cavidades": 2,
+    "produccionTeorica": 1332.0,
+    "descripcion": "TEE S/AB BLANCO 110 X 75"
+  },
+  {
+    "codigo": "20565",
+    "ciclo": 43.0,
+    "cavidades": 2,
+    "produccionTeorica": 1339.53,
+    "descripcion": "TEE S/AB BLANCO 110 X 110"
+  },
+  {
+    "codigo": "20593",
+    "ciclo": 37.161,
+    "cavidades": 10,
+    "produccionTeorica": 7750.0,
+    "descripcion": "TAPON PILETA SANITARIA"
+  },
+  {
+    "codigo": "20607",
+    "ciclo": 39.506,
+    "cavidades": 1,
+    "produccionTeorica": 729.0,
+    "descripcion": "Z SOPORTE CUADRADO 110 GRIS"
+  },
+  {
+    "codigo": "20613",
+    "ciclo": 50.0,
+    "cavidades": 1,
+    "produccionTeorica": 576.0,
+    "descripcion": "PILETA UNIV GRIS 110 75 50/40 50/40 50/40"
+  },
+  {
+    "codigo": "20634",
+    "ciclo": 67.606,
+    "cavidades": 4,
+    "produccionTeorica": 1704.0,
+    "descripcion": "TAPA GORRO HI 40 X 11/4 H"
+  },
+  {
+    "codigo": "20636",
+    "ciclo": 57.6,
+    "cavidades": 4,
+    "produccionTeorica": 2000.0,
+    "descripcion": "TAPA GORRO HI 25 X 3/4"
+  },
+  {
+    "codigo": "20637",
+    "ciclo": 51.706,
+    "cavidades": 4,
+    "produccionTeorica": 2228.0,
+    "descripcion": "TAPA GORRO HI 32 X 1"
+  },
+  {
+    "codigo": "20644",
+    "ciclo": 86.812,
+    "cavidades": 4,
+    "produccionTeorica": 1327.0,
+    "descripcion": "TAPA GORRO HI 50 X 11/2"
+  },
+  {
+    "codigo": "20672",
+    "ciclo": 46.0,
+    "cavidades": 2,
+    "produccionTeorica": 1252.17,
+    "descripcion": "VEE 110 X 75 GRIS"
+  },
+  {
+    "codigo": "20674",
+    "ciclo": 36.0,
+    "cavidades": 1,
+    "produccionTeorica": 800.0,
+    "descripcion": "VEE SANITARIA GRIS 110X50"
+  },
+  {
+    "codigo": "20676",
+    "ciclo": 41.143,
+    "cavidades": 1,
+    "produccionTeorica": 700.0,
+    "descripcion": "VEE SANITARIA GRIS 110 X 40"
+  },
+  {
+    "codigo": "50745",
+    "ciclo": 45.0,
+    "cavidades": 16,
+    "produccionTeorica": 10240.0,
+    "descripcion": "CODO 50 X 87 SANITARIO"
+  },
+  {
+    "codigo": "60278",
+    "ciclo": 46.08,
+    "cavidades": 4,
+    "produccionTeorica": 2500.0,
+    "descripcion": "COPLA PVC 32 mm CEMENTAR"
+  },
+  {
+    "codigo": "64010",
+    "ciclo": 45.0,
+    "cavidades": 8,
+    "produccionTeorica": 5120.0,
+    "descripcion": "CODO CANALETA M-H BLANCO 75mm x 87.5"
+  },
+  {
+    "codigo": "64011",
+    "ciclo": 34.45,
+    "cavidades": 2,
+    "produccionTeorica": 1671.99,
+    "descripcion": "CODO CANALETA M-H BLANCO 75mm x 45"
+  },
+  {
+    "codigo": "20105",
+    "ciclo": 42.667,
+    "cavidades": 2,
+    "produccionTeorica": 1350.0,
+    "descripcion": "UNION AMERICANA 32 mm PVC CEMENTAR"
+  },
+  {
+    "codigo": "64003",
+    "ciclo": 36.0,
+    "cavidades": 2,
+    "produccionTeorica": 1600.0,
+    "descripcion": "UNION CANALETA BLANCO PH25"
+  },
+  {
+    "codigo": "64004",
+    "ciclo": 26.182,
+    "cavidades": 2,
+    "produccionTeorica": 2200.0,
+    "descripcion": "TAPA CANALETA DER/IZQ BLANCO PH25"
+  },
+  {
+    "codigo": "64005",
+    "ciclo": 38.4,
+    "cavidades": 8,
+    "produccionTeorica": 6000.0,
+    "descripcion": "GANCHO TRADICIONAL CANALETA BLANCO PH25"
+  },
+  {
+    "codigo": "20628",
+    "ciclo": 37.0,
+    "cavidades": 1,
+    "produccionTeorica": 778.38,
+    "descripcion": "Z SOPORTE CUADRADO BLANCO 110 S/REJ"
+  },
+  {
+    "codigo": "10238",
+    "ciclo": 23.0,
+    "cavidades": 1,
+    "produccionTeorica": 1252.17,
+    "descripcion": "Z ABRAZADERA TUBO BAJADA CANALETA BLANCA 75 mm S/ARMAR"
+  },
+  {
+    "codigo": "64039",
+    "ciclo": 32.0,
+    "cavidades": 2,
+    "produccionTeorica": 1800.0,
+    "descripcion": "ZZ ADAPTADOR BAJADA CANALETA CAFE 80X75"
+  },
+  {
+    "codigo": "64038",
+    "ciclo": 32.0,
+    "cavidades": 2,
+    "produccionTeorica": 1800.0,
+    "descripcion": "ZZ ADAPTADOR BAJADA CANALETA BLANCA 80X75"
+  },
+  {
+    "codigo": "64008",
+    "ciclo": 23.0,
+    "cavidades": 1,
+    "produccionTeorica": 1252.17,
+    "descripcion": "ABRAZADERA TUBO BAJADA 75 mm CANALETA BLANCO PH25"
+  },
+  {
+    "codigo": "20376",
+    "ciclo": 100.0,
+    "cavidades": 1,
+    "produccionTeorica": 288.0,
+    "descripcion": "COLLAR DE ARRANQUE REFORZADO  110 X 1/2\""
+  },
+  {
+    "codigo": "64001",
+    "ciclo": 39.0,
+    "cavidades": 1,
+    "produccionTeorica": 738.46,
+    "descripcion": "ZZ BAJADA CANALETA BLANCO PH25"
+  },
+  {
+    "codigo": "64036",
+    "ciclo": 37.8,
+    "cavidades": 0,
+    "produccionTeorica": 0.0,
+    "descripcion": "* TUBO BAJADA CANALETA CAFE D 75 mm X 5 m"
+  },
+  {
+    "codigo": "64026",
+    "ciclo": 45.0,
+    "cavidades": 8,
+    "produccionTeorica": 5120.0,
+    "descripcion": "CODO CANALETA M-H CAFE 75mm X 87.5"
+  },
+  {
+    "codigo": "20113",
+    "ciclo": 25.6,
+    "cavidades": 4,
+    "produccionTeorica": 4500.0,
+    "descripcion": "ZZ BUSHING PP 11/2 X 11/4 COBRE"
+  },
+  {
+    "codigo": "20394",
+    "ciclo": 42.0,
+    "cavidades": 4,
+    "produccionTeorica": 2742.86,
+    "descripcion": "TUERCA CON COLA 1 1/2 COBRE"
+  },
+  {
+    "codigo": "10142",
+    "ciclo": 29.7,
+    "cavidades": 12,
+    "produccionTeorica": 11636.36,
+    "descripcion": "ZZ TUERCA 11/2 MULTIUSO COBRE"
+  },
+  {
+    "codigo": "10155",
+    "ciclo": 40.0,
+    "cavidades": 4,
+    "produccionTeorica": 2880.0,
+    "descripcion": "ZZ CONJUNTO SIFON LOA COBRE"
+  },
+  {
+    "codigo": "10036",
+    "ciclo": 29.3,
+    "cavidades": 8,
+    "produccionTeorica": 7863.48,
+    "descripcion": "ZZ CODO ST 1 1/2 COBRE"
+  },
+  {
+    "codigo": "10025",
+    "ciclo": 30.0,
+    "cavidades": 4,
+    "produccionTeorica": 3840.0,
+    "descripcion": "ZZ CURVA STD REGIO COBRE"
+  },
+  {
+    "codigo": "10140",
+    "ciclo": 27.9,
+    "cavidades": 12,
+    "produccionTeorica": 12387.1,
+    "descripcion": "ZZ TUERCA 1 1/4 MULTIUSO COBRE"
+  },
+  {
+    "codigo": "10156",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "ZZ CONJUNTO SIFON REGIO COBRE"
+  },
+  {
+    "codigo": "20403",
+    "ciclo": 54.0,
+    "cavidades": 12,
+    "produccionTeorica": 6400.0,
+    "descripcion": "ZZ TUERCA CON COLA 1 1/4 COBRE"
+  },
+  {
+    "codigo": "64021",
+    "ciclo": 39.0,
+    "cavidades": 1,
+    "produccionTeorica": 738.46,
+    "descripcion": "ZZ BAJADA CANALETA CAFE CEMENTAR"
+  },
+  {
+    "codigo": "64024",
+    "ciclo": 26.0,
+    "cavidades": 2,
+    "produccionTeorica": 2215.38,
+    "descripcion": "TAPA CANALETA CAFE UNIVERSAL"
+  },
+  {
+    "codigo": "64025",
+    "ciclo": 38.4,
+    "cavidades": 8,
+    "produccionTeorica": 6000.0,
+    "descripcion": "GANCHO TRADICIONAL CANALETA CAFE"
+  },
+  {
+    "codigo": "10239",
+    "ciclo": 26.0,
+    "cavidades": 1,
+    "produccionTeorica": 1107.69,
+    "descripcion": "Z ABRAZADERA TUBO BAJADA CANALETA CAFE 75 mm S/ARMAR"
+  },
+  {
+    "codigo": "64023",
+    "ciclo": 36.0,
+    "cavidades": 2,
+    "produccionTeorica": 1600.0,
+    "descripcion": "UNION CANALETA CAFE"
+  },
+  {
+    "codigo": "20509",
+    "ciclo": 55.5,
+    "cavidades": 1,
+    "produccionTeorica": 518.92,
+    "descripcion": "TEE BLANCA 75 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "10185",
+    "ciclo": 33.0,
+    "cavidades": 2,
+    "produccionTeorica": 1745.45,
+    "descripcion": "TUBO ALARGADOR CONEXION 2 TAZAS"
+  },
+  {
+    "codigo": "60220",
+    "ciclo": 50.0,
+    "cavidades": 2,
+    "produccionTeorica": 1152.0,
+    "descripcion": "UNION AMERICANA 40 mm"
+  },
+  {
+    "codigo": "10157",
+    "ciclo": 40.0,
+    "cavidades": 4,
+    "produccionTeorica": 2880.0,
+    "descripcion": "CONJUNTO SIFON LOA SALIDA 50 mm"
+  },
+  {
+    "codigo": "60136",
+    "ciclo": 66.0,
+    "cavidades": 2,
+    "produccionTeorica": 872.73,
+    "descripcion": "UNION AMERICANA 50 mm"
+  },
+  {
+    "codigo": "10122",
+    "ciclo": 36.0,
+    "cavidades": 4,
+    "produccionTeorica": 3200.0,
+    "descripcion": "TUERCA ESTRIADA 1 1/2"
+  },
+  {
+    "codigo": "20512",
+    "ciclo": 59.036,
+    "cavidades": 1,
+    "produccionTeorica": 487.83,
+    "descripcion": "TEE BLANCA 110 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20495",
+    "ciclo": 20.021,
+    "cavidades": 1,
+    "produccionTeorica": 1438.5,
+    "descripcion": "CODO BLANCO 50 X 45 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20513",
+    "ciclo": 59.036,
+    "cavidades": 1,
+    "produccionTeorica": 487.83,
+    "descripcion": "TEE BLANCA 110 X 50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20515",
+    "ciclo": 60.0,
+    "cavidades": 2,
+    "produccionTeorica": 960.0,
+    "descripcion": "TEE BLANCA 110 X 110 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20504",
+    "ciclo": 20.021,
+    "cavidades": 1,
+    "produccionTeorica": 1438.5,
+    "descripcion": "REDUCCION SANBLANCO 110 X 50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20494",
+    "ciclo": 20.021,
+    "cavidades": 1,
+    "produccionTeorica": 1438.5,
+    "descripcion": "CODO BLANCO 40 X 45 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20500",
+    "ciclo": 60.019,
+    "cavidades": 1,
+    "produccionTeorica": 479.85,
+    "descripcion": "COPLA BLANCA 75 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20490",
+    "ciclo": 45.0,
+    "cavidades": 8,
+    "produccionTeorica": 5120.0,
+    "descripcion": "CODO BLANCO 50 X 87 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "51378",
+    "ciclo": 55.0,
+    "cavidades": 8,
+    "produccionTeorica": 4189.09,
+    "descripcion": "CODO BLANCO 40 X 87 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20508",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "TEE BLANCA 50 X 50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20492",
+    "ciclo": 45.0,
+    "cavidades": 4,
+    "produccionTeorica": 2560.0,
+    "descripcion": "CODO BLANCO 75 X 87 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20493",
+    "ciclo": 50.0,
+    "cavidades": 2,
+    "produccionTeorica": 1152.0,
+    "descripcion": "CODO BLANCO 110 X 87 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20519",
+    "ciclo": 60.0,
+    "cavidades": 2,
+    "produccionTeorica": 960.0,
+    "descripcion": "VEE BLANCA 110 X 110 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20517",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "VEE BLANCA 50 X 50 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20497",
+    "ciclo": 70.0,
+    "cavidades": 4,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO BLANCO 110 X 45 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20518",
+    "ciclo": 60.019,
+    "cavidades": 1,
+    "produccionTeorica": 479.85,
+    "descripcion": "VEE BLANCA 75 X 75 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20511",
+    "ciclo": 60.019,
+    "cavidades": 1,
+    "produccionTeorica": 479.85,
+    "descripcion": "TEE BLANCA 75 X 75 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20501",
+    "ciclo": 47.0,
+    "cavidades": 4,
+    "produccionTeorica": 2451.06,
+    "descripcion": "COPLA BLANCA 110 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20675",
+    "ciclo": 53.0,
+    "cavidades": 1,
+    "produccionTeorica": 543.4,
+    "descripcion": "VEE SANITARIA BLANCA 110X50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20677",
+    "ciclo": 53.374,
+    "cavidades": 1,
+    "produccionTeorica": 539.59,
+    "descripcion": "VEE SANITARIA BLANCA 110 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20514",
+    "ciclo": 63.377,
+    "cavidades": 1,
+    "produccionTeorica": 454.42,
+    "descripcion": "TEE BLANCA 110 X 75 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20673",
+    "ciclo": 63.377,
+    "cavidades": 1,
+    "produccionTeorica": 454.42,
+    "descripcion": "VEE 110 X 75 BLANCA (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20496",
+    "ciclo": 30.009,
+    "cavidades": 1,
+    "produccionTeorica": 959.7,
+    "descripcion": "CODO BLANCO 75 X 45 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20502",
+    "ciclo": 20.006,
+    "cavidades": 1,
+    "produccionTeorica": 1439.55,
+    "descripcion": "REDUCCION SAN. BLANCO 50 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20503",
+    "ciclo": 20.006,
+    "cavidades": 1,
+    "produccionTeorica": 1439.55,
+    "descripcion": "REDUCCION SANBLANCO 75 X 50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20505",
+    "ciclo": 30.009,
+    "cavidades": 1,
+    "produccionTeorica": 959.7,
+    "descripcion": "REDUCCION SANBLANCO 110 X 75 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20499",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "COPLA BLANCA 50 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20498",
+    "ciclo": 40.0,
+    "cavidades": 1,
+    "produccionTeorica": 720.0,
+    "descripcion": "COPLA BLANCA 40 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20533",
+    "ciclo": 33.368,
+    "cavidades": 1,
+    "produccionTeorica": 863.1,
+    "descripcion": "TEE REGISTRO SAN BLANCA 110mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20506",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "TEE BLANCA 40 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20507",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "TEE BLANCA 50 X 40 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20510",
+    "ciclo": 55.51,
+    "cavidades": 1,
+    "produccionTeorica": 518.83,
+    "descripcion": "TEE BLANCA 75 X 50 (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20516",
+    "ciclo": 40.013,
+    "cavidades": 1,
+    "produccionTeorica": 719.77,
+    "descripcion": "VEE BLANCA 40 X 40 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "10123",
+    "ciclo": 36.0,
+    "cavidades": 4,
+    "produccionTeorica": 3200.0,
+    "descripcion": "TAPA REGISTRO 1 1/2"
+  },
+  {
+    "codigo": "10052",
+    "ciclo": 23.0,
+    "cavidades": 8,
+    "produccionTeorica": 10017.39,
+    "descripcion": "GOMA CONICA DE 50 mm"
+  },
+  {
+    "codigo": "51263",
+    "ciclo": 37.8,
+    "cavidades": 8,
+    "produccionTeorica": 6095.24,
+    "descripcion": "ABRAZADERA SANITARIA 110 mm"
+  },
+  {
+    "codigo": "51262",
+    "ciclo": 34.8,
+    "cavidades": 10,
+    "produccionTeorica": 8275.86,
+    "descripcion": "ABRAZADERA SANITARIA 75 mm"
+  },
+  {
+    "codigo": "60173",
+    "ciclo": 70.0,
+    "cavidades": 2,
+    "produccionTeorica": 822.86,
+    "descripcion": "CODO PVC 90 mm CEMENTAR"
+  },
+  {
+    "codigo": "10158",
+    "ciclo": 32.0,
+    "cavidades": 4,
+    "produccionTeorica": 3600.0,
+    "descripcion": "CONJUNTO SIFON REGIO SALIDA DE 40 mm"
+  },
+  {
+    "codigo": "64027",
+    "ciclo": 34.0,
+    "cavidades": 2,
+    "produccionTeorica": 1694.12,
+    "descripcion": "CODO CANALETA M-H CAFE 75mm X 45"
+  },
+  {
+    "codigo": "60142",
+    "ciclo": 213.0,
+    "cavidades": 2,
+    "produccionTeorica": 270.42,
+    "descripcion": "CODO PVC 110 mm CEMENTAR"
+  },
+  {
+    "codigo": "64012",
+    "ciclo": 27.5,
+    "cavidades": 2,
+    "produccionTeorica": 2094.55,
+    "descripcion": "COPLA CANALETA BLANCO 75 mm"
+  },
+  {
+    "codigo": "64033",
+    "ciclo": 27.52,
+    "cavidades": 2,
+    "produccionTeorica": 2093.02,
+    "descripcion": "COPLA CANALETA CAFE 75 mm"
+  },
+  {
+    "codigo": "64040",
+    "ciclo": 50.0,
+    "cavidades": 2,
+    "produccionTeorica": 1152.0,
+    "descripcion": "BAJADA CANALETA BLANCA 80/75 mm"
+  },
+  {
+    "codigo": "64050",
+    "ciclo": 50.0,
+    "cavidades": 2,
+    "produccionTeorica": 1152.0,
+    "descripcion": "BAJADA CANALETA CAFE 80/75 mm"
+  },
+  {
+    "codigo": "62402",
+    "ciclo": 191.0,
+    "cavidades": 1,
+    "produccionTeorica": 150.79,
+    "descripcion": "TEE COLECTOR INY 200 X 110 3 CAMPANAS (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "20599",
+    "ciclo": 38.8,
+    "cavidades": 8,
+    "produccionTeorica": 5938.14,
+    "descripcion": "ZZ PACK GANCHO TRADICIONAL PVC BLANCO CANALETA 7 UNIDADES"
+  },
+  {
+    "codigo": "20600",
+    "ciclo": 38.8,
+    "cavidades": 8,
+    "produccionTeorica": 5938.14,
+    "descripcion": "ZZ PACK GANCHO TRADICIONAL PVC MARRON CANALETA 7 UNIDADES"
+  },
+  {
+    "codigo": "20678",
+    "ciclo": 47.0,
+    "cavidades": 4,
+    "produccionTeorica": 2451.06,
+    "descripcion": "COPLA REPARACION SAN BLANCO 110 mm (ANILLO INCLUIDO)"
+  },
+  {
+    "codigo": "10050",
+    "ciclo": 48.0,
+    "cavidades": 4,
+    "produccionTeorica": 2400.0,
+    "descripcion": "TUERCA SALIDA 50 mm BLANCA"
+  },
+  {
+    "codigo": "20465",
+    "ciclo": 50.0,
+    "cavidades": 4,
+    "produccionTeorica": 2304.0,
+    "descripcion": "CODO 110 X 45 SANITARIO"
+  },
+  {
+    "codigo": "64053",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA CAFE H-H 65°x80 mm"
+  },
+  {
+    "codigo": "64043",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA BLANCA H-H 65°x80 mm"
+  },
+  {
+    "codigo": "64068",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA CORTO M-H BCO 80mmx65°"
+  },
+  {
+    "codigo": "64069",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA CORTO M-H CAFE 80mmx65°"
+  },
+  {
+    "codigo": "40029",
+    "ciclo": 1.0,
+    "cavidades": 1,
+    "produccionTeorica": 28800.0,
+    "descripcion": "* CANERIA PEBD 1/2 (50 m)"
+  },
+  {
+    "codigo": "64007",
+    "ciclo": 35.0,
+    "cavidades": 4,
+    "produccionTeorica": 3291.43,
+    "descripcion": "TAPA ACCESORIO CANALETA DER/IZQ BLANCO PH25"
+  },
+  {
+    "codigo": "64032",
+    "ciclo": 35.0,
+    "cavidades": 4,
+    "produccionTeorica": 3290.0,
+    "descripcion": "TAPA ACCESORIO CANALETA CAFE"
+  },
+  {
+    "codigo": "64057",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA CAFE M-H 87.5°x80 mm"
+  },
+  {
+    "codigo": "64047",
+    "ciclo": 35.0,
+    "cavidades": 2,
+    "produccionTeorica": 1645.71,
+    "descripcion": "CODO CANALETA BLANCA M-H 87.5°x80 mm"
+  },
+  {
+    "codigo": "64070",
+    "ciclo": 25.0,
+    "cavidades": 8,
+    "produccionTeorica": 9216.0,
+    "descripcion": "ACCESORIO TAPACAN GANCHO CANALETA BLANCO"
+  },
+  {
+    "codigo": "64071",
+    "ciclo": 25.0,
+    "cavidades": 8,
+    "produccionTeorica": 9216.0,
+    "descripcion": "ACCESORIO TAPACAN GANCHO CANALETA CAFE"
+  },
+  {
+    "codigo": "64072",
+    "ciclo": 36.0,
+    "cavidades": 8,
+    "produccionTeorica": 6400.0,
+    "descripcion": "ABRAZADERA AJUSTABLE TUBO BAJADA CANALETA 75-80mm BLANCO"
+  },
+  {
+    "codigo": "64073",
+    "ciclo": 36.0,
+    "cavidades": 8,
+    "produccionTeorica": 6400.0,
+    "descripcion": "ABRAZADERA AJUSTABLE TUBO BAJADA CANALETA 75-80mm CAFE"
+  },
+  {
+    "codigo": "10163",
+    "ciclo": 25.0,
+    "cavidades": 4,
+    "produccionTeorica": 4608.0,
+    "descripcion": "TAPA GORRO PVC CONDUIT 110 mm"
+  },
+  {
+    "codigo": "10165",
+    "ciclo": 30.0,
+    "cavidades": 4,
+    "produccionTeorica": 3840.0,
+    "descripcion": "REGISTRO PILETA BASICA"
+  },
+  {
+    "codigo": "10613",
+    "ciclo": 40.0,
+    "cavidades": 2,
+    "produccionTeorica": 1440.0,
+    "descripcion": "PILETA UNIV BLANCA 110 75 50/40 50/40 50/40 SIN ARMAR"
+  },
+  {
+    "codigo": "80163",
+    "ciclo": 47.3,
+    "cavidades": 8,
+    "produccionTeorica": 4871.04,
+    "descripcion": "CODO 90° PP-RCT BETA  20 mm L."
+  },
+  {
+    "codigo": "20274",
+    "ciclo": 65.0,
+    "cavidades": 1,
+    "produccionTeorica": 443.08,
+    "descripcion": "TEE REGISTRO SAN GRIS 110 mm"
+  },
+  {
+    "codigo": "90826",
+    "ciclo": 70.0,
+    "cavidades": 8,
+    "produccionTeorica": 3291.0,
+    "descripcion": "CODO PVC PRESIÓN 50 mm 90° CEM  PN-10 AZUL LISO"
+  }
+];
+
+  </script>
+  <script>
+let registros = JSON.parse(localStorage.getItem("registrosHoffens")) || [];
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("fecha").valueAsDate = new Date();
+  cargarMaquinas();
+  cargarMoldes();
+  cargarRegistros();
+
+  document.getElementById("buscadorMolde").addEventListener("input", cargarMoldes);
+  document.getElementById("molde").addEventListener("change", actualizarMolde);
+  document.getElementById("cicloReal").addEventListener("input", actualizarProduccionReal);
+  document.getElementById("cavidadesReales").addEventListener("input", actualizarProduccionReal);
+  document.getElementById("horasTrabajadas").addEventListener("input", actualizarProduccionReal);
+  document.getElementById("resumenBase").textContent = `Moldes cargados: ${MOLDES.length} | Máquinas: ${MAQUINAS.join(", ")}`;
+});
+
+function guardarLocal(){
+  localStorage.setItem("registrosHoffens", JSON.stringify(registros));
+}
+
+function cargarMaquinas(){
+  const select = document.getElementById("maquina");
+  select.innerHTML = "";
+  MAQUINAS.forEach(n => {
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.textContent = "Máquina " + n;
+    select.appendChild(opt);
+  });
+}
+
+function cargarMoldes(){
+  const filtro = document.getElementById("buscadorMolde").value.toLowerCase().trim();
+  const select = document.getElementById("molde");
+  select.innerHTML = "";
+
+  const filtrados = MOLDES.filter(m =>
+    m.codigo.toLowerCase().includes(filtro) ||
+    m.descripcion.toLowerCase().includes(filtro)
+  ).slice(0, 150);
+
+  filtrados.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.codigo;
+    opt.textContent = `${m.codigo} - ${m.descripcion}`;
+    select.appendChild(opt);
+  });
+
+  actualizarMolde();
+}
+
+function moldeSeleccionado(){
+  const codigo = document.getElementById("molde").value;
+  return MOLDES.find(m => m.codigo === codigo);
+}
+
+function actualizarMolde(){
+  const m = moldeSeleccionado();
+  if(!m){
+    document.getElementById("descripcion").textContent = "-";
+    document.getElementById("cicloEstandar").textContent = "-";
+    document.getElementById("cavidades").textContent = "-";
+    document.getElementById("prodTeorica").textContent = "-";
+    document.getElementById("prodRealCalc").textContent = "-";
+    document.getElementById("produccionCalculada").textContent = "-";
+    return;
+  }
+  document.getElementById("descripcion").textContent = m.descripcion;
+  document.getElementById("cicloEstandar").textContent = m.ciclo;
+  document.getElementById("cavidades").textContent = m.cavidades;
+  document.getElementById("prodTeorica").textContent = Math.round(m.produccionTeorica);
+  const cavInput = document.getElementById("cavidadesReales");
+  if(!cavInput.value){
+    cavInput.value = m.cavidades;
+  }
+  actualizarProduccionReal();
+}
+
+function calcularProduccionReal(){
+  const cicloReal = Number(document.getElementById("cicloReal").value);
+  const cavidadesReales = Number(document.getElementById("cavidadesReales").value);
+  const horasTrabajadas = Number(document.getElementById("horasTrabajadas").value) || 8;
+
+  if(!cicloReal || !cavidadesReales || !horasTrabajadas){
+    return 0;
+  }
+
+  return Math.round((cavidadesReales * 3600 / cicloReal) * horasTrabajadas);
+}
+
+function actualizarProduccionReal(){
+  const produccion = calcularProduccionReal();
+  const texto = produccion > 0 ? produccion.toLocaleString("es-CL") : "-";
+  document.getElementById("produccionCalculada").textContent = texto;
+  document.getElementById("prodRealCalc").textContent = texto;
+}
+
+function estadoCiclo(dif){
+  if(dif <= 0) return {txt:"🟢 OK", cls:"ok"};
+  if(dif <= 3) return {txt:"🟡 Revisar", cls:"warn"};
+  return {txt:"🔴 Alto", cls:"bad"};
+}
+
+function guardarRegistro(){
+  const m = moldeSeleccionado();
+  const cicloReal = Number(document.getElementById("cicloReal").value);
+  const cavidadesReales = Number(document.getElementById("cavidadesReales").value);
+  const horasTrabajadas = Number(document.getElementById("horasTrabajadas").value) || 8;
+  const produccion = calcularProduccionReal();
+  const fecha = document.getElementById("fecha").value;
+  const maquina = document.getElementById("maquina").value;
+
+  if(!m || !fecha || !maquina || !cicloReal || !cavidadesReales || !horasTrabajadas){
+    alert("Completa fecha, máquina, molde, ciclo real, cavidades reales y horas trabajadas.");
+    return;
+  }
+
+  const diferencia = Number((cicloReal - m.ciclo).toFixed(2));
+  const produccionTeoricaAjustada = Math.round((m.cavidades * 3600 / m.ciclo) * horasTrabajadas);
+  const cumplimiento = produccionTeoricaAjustada > 0 ? Number(((produccion / produccionTeoricaAjustada) * 100).toFixed(1)) : 0;
+
+  registros.unshift({
+    fecha,
+    maquina,
+    codigo: m.codigo,
+    descripcion: m.descripcion,
+    cicloEstandar: m.ciclo,
+    cavidades: m.cavidades,
+    produccionTeorica: produccionTeoricaAjustada,
+    cicloReal,
+    cavidadesReales,
+    horasTrabajadas,
+    diferencia,
+    produccion,
+    cumplimiento
+  });
+
+  document.getElementById("cicloReal").value = "";
+  document.getElementById("produccionCalculada").textContent = "-";
+  document.getElementById("prodRealCalc").textContent = "-";
+  guardarLocal();
+  cargarRegistros();
+}
+
+function cargarRegistros(){
+  const tbody = document.getElementById("tablaRegistros");
+  tbody.innerHTML = "";
+
+  registros.forEach(r => {
+    const e = estadoCiclo(r.diferencia);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.fecha}</td>
+      <td>${r.maquina}</td>
+      <td>${r.codigo}</td>
+      <td>${r.descripcion}</td>
+      <td>${r.cicloEstandar}</td>
+      <td>${r.cicloReal}</td>
+      <td>${r.cavidadesReales || r.cavidades}</td>
+      <td>${r.horasTrabajadas || 8}</td>
+      <td>${r.diferencia > 0 ? "+" : ""}${r.diferencia}</td>
+      <td class="${e.cls}">${e.txt}</td>
+      <td>${Number(r.produccion).toLocaleString("es-CL")}</td>
+      <td>${r.cumplimiento}%</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("totalRegistros").textContent = registros.length;
+  document.getElementById("totalProduccion").textContent = registros.reduce((a,b)=>a + Number(b.produccion),0).toLocaleString("es-CL");
+  const promCiclo = registros.length ? registros.reduce((a,b)=>a + Number(b.cicloReal),0) / registros.length : 0;
+  const promCumpl = registros.length ? registros.reduce((a,b)=>a + Number(b.cumplimiento),0) / registros.length : 0;
+  document.getElementById("promedioCiclo").textContent = promCiclo.toFixed(1);
+  document.getElementById("promedioCumplimiento").textContent = promCumpl.toFixed(1) + "%";
+}
+
+function exportarCSV(){
+  if(registros.length === 0){
+    alert("No hay registros para exportar.");
+    return;
+  }
+
+  const headers = ["Fecha","Maquina","Codigo","Producto","Ciclo estandar","Cavidades molde","Cavidades reales","Horas trabajadas","Prod teorica ajustada","Ciclo real","Diferencia","Produccion real calculada","Cumplimiento %"];
+  const rows = registros.map(r => [r.fecha,r.maquina,r.codigo,r.descripcion,r.cicloEstandar,r.cavidades,r.cavidadesReales || r.cavidades,r.horasTrabajadas || 8,r.produccionTeorica,r.cicloReal,r.diferencia,r.produccion,r.cumplimiento]);
+  const csv = [headers, ...rows].map(row => row.map(x => String(x).replaceAll(";", ",")).join(";")).join("\n");
+
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "registros_moldes_hoffens.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function borrarRegistros(){
+  if(confirm("¿Seguro que quieres borrar todos los registros guardados?")){
+    registros = [];
+    guardarLocal();
+    cargarRegistros();
+  }
+}
+
+  </script>
+</body>
+</html>
